@@ -1,15 +1,19 @@
 import express from "express";
-import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import cors from "cors"
+
 const app=express();
 
-dotenv.config();
 
-app.get("/",(req,res)=>{
-    res.send("i writting the backend for pinterest");
-})
+app.use(cors({
+    origin:process.env.CORS_ORIGIN,
+    credentials:true
+}));
 
-const PORT = process.env.PORT || 3000;
+app.use(express.json({limit:"20kb"}));
+app.use(express.urlencoded({extended:true,limit:"20kb"}));
+app.use(express.static("public"));
+app.use(cookieParser());
 
-app.listen(PORT, () => {
-    console.log(` Server is running on ${PORT}`);
-});
+
+export {app}
