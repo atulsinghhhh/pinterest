@@ -38,27 +38,29 @@ import { ApiError } from "../utilis/ApiError.js";
 import { User } from "../models/user.models.js";
 
 export const verifyjwt = asyncHandler(async (req, res, next) => {
-    const token =
-        req.cookies?.token ||
-        req.header("Authorization")?.replace("Bearer ", "");
+    try {
+        const token =
+            req.cookies?.token || req.header("Authorization")?.replace("Bearer ", "");
 
         console.log(token);
-
-    if (!token) {
-        throw new ApiError(401, "Unauthorized: Token missing");
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.TOKEN_SECERT);
-
-        const user = await User.findById(decoded._id).select("-password");
-        if (!user) {
-        throw new ApiError(401, "Unauthorized: Invalid token");
+        if (!token) {
+            throw new ApiError(401, "Unauthorized - Token missing");
         }
 
-        req.user = user;
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECERT);
+
+        // Optional: Fetch user and attach to request
+        const user = await User.findById(decoded?._id).select("-password -refreshToken");
+        if (!user) {
+            throw new ApiError(401, "User not found");
+        }
+
+        req.user = user; // attach user info to req
         next();
-    } catch (err) {
-        throw new ApiError(401, "Unauthorized: Token invalid or expired");
+    } catch (error) {
+        console.log("Auth error:", error);
+        return res
+            .status(401)
+            .json({ success: false, message: "Unauthorized", error: error.message });
     }
 });

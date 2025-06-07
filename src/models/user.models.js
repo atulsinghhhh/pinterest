@@ -32,7 +32,10 @@ const userSchema=new Schema({
     boards:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:"Board"
-    }]
+    }],
+    refreshToken:{
+        type:String,
+    }
 },{timestamps:true});
 
 export const User=mongoose.model("User",userSchema);

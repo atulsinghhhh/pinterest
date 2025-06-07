@@ -62,16 +62,34 @@ const userLogin=asyncHandler(async(req,res)=>{
         username:user.username,
     }
 
-    const token=await jwt.sign(tokenPayload,process.env.TOKEN_SECERT,
+    const accessToken=await jwt.sign(tokenPayload,process.env.ACCESS_TOKEN_SECERT,
         {expiresIn:'1h'}
     )
+
+    const refreshToken=await jwt.sign(tokenPayload,process.env.REFERSH_TOKEN_SECERT,
+        {expiresIn:'7d'}
+    )
+    user.refreshToken = refreshToken;
+    await user.save({validateBeforeSave:false});
+
+
     const userDetails=await User.findById(user._id).select("-password -refreshToken");
-    const options={
+
+    res.cookie("token", accessToken, {
         httpOnly: true,
-        maxAge: 60 * 60,
-    }
+        maxAge: 60 * 60 * 1000, // 1 hour
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+    // const options={
+    //     httpOnly: true,
+    //     maxAge: 60 * 60,
+    // }
     return res.status(200)
-    .cookie("token",token,options)
+    // .cookie("token",token,options)
     .json(
         new ApiResponse(
             200,
@@ -80,17 +98,24 @@ const userLogin=asyncHandler(async(req,res)=>{
         )
     )
 })
-const userLogout=asyncHandler(async(req,res)=>{
-        res.clearCookie("token", {
+const userLogout = asyncHandler(async (req, res) => {
+    res.clearCookie("accessToken", {
         httpOnly: true,
         sameSite: "strict",
-        maxAge: 60 * 60 * 1000,
+        secure: true, // Only use in HTTPS environments (set false in dev if needed)
+    });
+
+    res.clearCookie("refreshToken", {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: true,
     });
 
     return res.status(200).json(
         new ApiResponse(200, null, "User logged out successfully")
     );
-})
+});
+
 const changeCurrentPassword=asyncHandler(async(req,res)=>{
     const {oldpassword,newpassword}=req.body;
 
@@ -125,10 +150,16 @@ const getUserProfile=asyncHandler(async(req,res)=>{
     if(!username){
         throw new ApiError(400, "Username is required");
     }
+    console.log("Requested username:", username)
+    // console.log(username);
     const user=await User.findOne({username}).select("-password");
+    // console.log("Username from param:", username);
+    // console.log("All users in DB:", await User.find({}));
+
     if(!user){
         throw new ApiError(404, "User not found");
     }
+    console.log("Found user:", user);
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -143,7 +174,7 @@ const updateUserProfile=asyncHandler(async(req,res)=>{
     if(!username || !email || !bios || !fullname){
         throw new ApiError(400, "all required are required");
     }
-    const user=await User.findById(user.req._id);
+    const user=await User.findById(req.user._id);
     if(!user){
         throw new ApiError(404, "User not found");
     }
@@ -151,11 +182,12 @@ const updateUserProfile=asyncHandler(async(req,res)=>{
     if(username) user.username=username;
     if(email) user.email=email;
     if(bios) user.bios=bios;
+    if(fullname) user.fullname=fullname
 
     const userDetails=await User.findById(user._id).select("-password");
 
     return res.status(200).json(
-        ApiResponse(
+        new ApiResponse(
             200,
             userDetails,
             "User updated successfully"
