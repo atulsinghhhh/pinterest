@@ -195,11 +195,28 @@ const updateUserProfile=asyncHandler(async(req,res)=>{
     )
 
 })
+const getUserBoards=asyncHandler(async(req,res)=>{
+    const user=await User.findById(req.user._id)
+    .populate("boards")
+    .select("boards")
+
+    if(!user){
+        throw new ApiError(404,"user is not found");
+    }
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            user.boards, 
+            "Fetched user boards"
+        )
+    )
+})
 export {
     userSignup,
     userLogin,
     userLogout,
     changeCurrentPassword,
     getUserProfile,
-    updateUserProfile
+    updateUserProfile,
+    getUserBoards
 }
